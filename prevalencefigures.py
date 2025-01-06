@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from scipy.spatial.distance import pdist, squareform
 from scipy.optimize import curve_fit
 
-# Define theoretical variogram model functions
+
 def spherical_model(h, nugget, sill, range_):
     return nugget + (sill - nugget) * np.piecewise(h, [h <= range_, h > range_],
                                                    [lambda h: 1.5 * (h / range_) - 0.5 * (h / range_)**3, 1])
@@ -15,28 +15,26 @@ def exponential_model(h, nugget, sill, range_):
 def gaussian_model(h, nugget, sill, range_):
     return nugget + (sill - nugget) * (1 - np.exp(-(h**2) / (range_**2)))
 
-# Load data
+
 file_path = r"C:\Users\dbbes\OneDrive\Documents\Workspace\asthma\asthma_points_withpos.csv"
 df = pd.read_csv(file_path)
 df = df.replace([np.inf, -np.inf], np.nan).dropna()
 df = df.drop_duplicates(subset=['Longitude_Last', 'Latitude_Last'])
 
-# Extract coordinates and values
+
 coords = df[['Longitude_Last', 'Latitude_Last']].values
 values = df['prevalence_int'].values
 
-# Calculate the pairwise distances and differences
 distances = squareform(pdist(coords))
 differences = squareform(pdist(values[:, None]))
 
-# Choose the number of bins based on  the size of the dataset
 num_bins = min(len(df), 500)
 
-# Adjust starting point of bins to 400 and end to max distance
-bins = np.linspace(20000, distances.max(), num_bins)  # Starting from 400
+
+bins = np.linspace(20000, distances.max(), num_bins) 
 bin_center = 0.5 * (bins[1:] + bins[:-1])
 
-# Calculate the experimental variogram
+
 exp_variogram = []
 for i in range(len(bins)-1):
     bin_differences = differences[(distances >= bins[i]) & (distances < bins[i+1])]
@@ -50,10 +48,9 @@ finite_indices = np.isfinite(exp_variogram)
 exp_variogram = exp_variogram[finite_indices]
 bin_center = bin_center[finite_indices]
 
-# Robust method to estimate initial parameters for the variogram models
 def robust_initial_parameters(exp_variogram, bin_center):
     nugget_estimate = np.min(exp_variogram)
-    sill_estimate = np.percentile(exp_variogram, 75)  # Using the 75th percentile as a robust estimate for the sill
+    sill_estimate = np.percentile(exp_variogram, 75)
     range_estimate = bin_center[np.argmax(exp_variogram >= sill_estimate)] if np.any(exp_variogram >= sill_estimate) else bin_center[-1]
     return nugget_estimate, sill_estimate, range_estimate
 
